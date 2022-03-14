@@ -3,4 +3,4 @@
 __version__ = '0.1.0'
 
 
-from .basic import ensure_project_ready, ensure_project_ready_fix_pycall
+from .basic import ensure_project_ready, ensure_project_ready_fix_pycall, test_pycall

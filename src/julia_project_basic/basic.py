@@ -14,6 +14,9 @@ LOGGER = logging.getLogger('julia_project.install')
 std_flags = ['-q', '--history-file=no', '--startup-file=no', '--optimize=0']
 
 
+# def _default_julia_exe():
+#     return shutil.which("julia")
+
 def reset_env_var(var_name, old_val):
     if old_val:
         os.environ[var_name] = old_val
@@ -229,7 +232,8 @@ def get_project_toml(proj_dir):
 def get_manifest_toml(proj_dir):
     proj_toml = get_project_toml(proj_dir)
     if proj_toml is None:
-        raise FileNotFoundError("Project.toml is missing while searching for Manifest.toml")
+        raise FileNotFoundError("Project.toml is missing while searching for Manifest.toml. " +
+                                "Check that the project directory is correct.")
     if proj_toml.endswith("Project.toml"):
         mt = os.path.join(proj_dir, "Manifest.toml")
         if os.path.exists(mt):
@@ -249,12 +253,12 @@ def manifest_mtime(project_path):
 
 
 
-def need_resolve(project_path, depot_path):
-    need_resolve_res, _ = _need_resolve(project_path, depot_path)
+def need_resolve(project_path, depot_path, registries=None):
+    need_resolve_res, _ = _need_resolve(project_path, depot_path, registries)
     return need_resolve_res
 
 
-def _need_resolve(project_path, depot_path):
+def _need_resolve(project_path, depot_path, registries=None):
     if (depot_path is not None and os.path.isdir(depot_path)
         and (
             (not os.path.isdir(os.path.join(depot_path, "registries")))
@@ -266,6 +270,11 @@ def _need_resolve(project_path, depot_path):
         ):
         LOGGER.info(f"need_resolve: packages and/or registries missing from depo: {depot_path}")
         return (True, None)
+    if registries is not None:
+        for registry_name in registries.keys():
+            if not is_registry_installed(registry_name, depot_path):
+                LOGGER.info(f"need_resolve: Registry {registry_name} is not installed.")
+                return (True, None)
     proj_toml = get_project_toml(project_path)
     manifest_toml = get_manifest_toml(project_path)
     if manifest_toml is None:
@@ -324,7 +333,7 @@ def ensure_project_ready(project_path=None, julia_exe=None, depot_path=None,
     else:
         needed_packs = None
 
-    need_resolve_res, start_manifest_time = _need_resolve(project_path, depot_path)
+    need_resolve_res, start_manifest_time = _need_resolve(project_path, depot_path, registries)
     if (not need_resolve_res) and (not force) and not needed_packs:
         LOGGER.info("Project needs no installation or updating")
         return None
@@ -513,6 +522,13 @@ def ensure_project_ready_fix_pycall(
         - answer_rebuild_callback optional callback called after "rebuild" answer received.
         - answer_depot_callback optional callback called after "depot" answer received.
     """
+
+    if project_path is None:
+        project_path = "."
+
+    if julia_exe is None:
+        julia_exe = shutil.which("julia")
+
     for trial_num in (1, 2, 3):
         if trial_num == 1:
             if force is not True:

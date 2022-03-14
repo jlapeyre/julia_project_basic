@@ -23,43 +23,42 @@ os.chdir("/path/to/julia/project/")
 julia_project_basic.ensure_project_ready()
 ```
 
-### Function `find`
+You can also use `ensure_project_ready_fix_pycall` which does everything
+`ensure_project_ready` does and also checks whethr `PyCall.jl` is installed,
+built and is compatible with the currently running python interpreter.
+`PyCall.jl` will be built if it is not already.
+If it is incompatible, the user will be given a choice between recompiling `PyCall.jl` or
+installing everything to a "private" depot.
 
-`find(version_spec=None, check_exe=False, find_all=False, strict=False, env_var=None)`
+In the case that the Julia project is installed and ready to use, `ensure_project_ready`
+takes about 200 micro s to run. And `ensure_project_ready_fix_pycall` takes about
+200 ms to run. The factor of 1000 is due to starting a julia process and running a bit
+of julia code in the second case.
 
-Calling `find()` will use reasonable defaults.
+#### Options
 
-#### Parameters
-
--  `env_var` : The environment variable to check for a julia path.
-        If this variable is set and the exectuable satisfies `version_spec`, then it will be
-        preferred to all other paths. Default: "JULIA".
--  `version_spec` : A [Julia compatibility version specification](https://pkgdocs.julialang.org/v1/compatibility/)
-        as a str or object. The returned executable must satisfy this specification. Default: "^1".
--  `strict` : If `True` then prerelease (development) versions will be excluded.
--  `check_exe` : If `True` then check that the path is a Julia by querying it for the version.
-        Note that this has already been done for most Julias found when the version was extracted.
--  `find_all` : If `False` skip the locations that are slower to search. If no other exectuables
-        are found, the slower locations may be searched anyway. The only slow location is the
-        jill-installed location.
+See the docstrings for `ensure_project_ready` and `ensure_project_ready_fix_pycall` for
+a description of arguments.
 
 
-### Function `find_or_install`
+#### Details
 
-```
-find_or_install(version_spec=None, check_exe=False, find_all=False, strict=False,
-                    answer_yes=False, post_question_hook=None,
-                    env_var=None)
-```
+`ensure_project_ready` does the following
 
-Calling `find_or_install()` will use reasonable defaults.
+- checks if the `Manifest.toml` (or `JuliaManifest.toml`) exists and is newer than `Project.toml`.
+  It checks if a few directories in the Julia depot are present. It optionally checks if additional
+  registries are installed. It optionally checks if a supplied list of packages are in the `Project.toml`.
+  If any of these checks fail, then
+  The following steps are taken to install registries, packages, etc. and to run `Pkg.instantiate`.
 
-This function takes all the same parameters as does `find` as well as the following.
+- Optionally, registries are installed.
 
-#### Parameters
+- Optionally, packages are added to the project (version specs are not supported)
 
--  `answer_yes` - if `True`, then ask no questions, assume answers are "yes".
--  `post_question_hook` -  a function to run if and after the consumer is asked whether
-        to install Julia. This can be used to ask and record more questions rather
-        than waiting till after the download. Default: None
+- The project is instantiated.
+
+
+`ensure_project_ready_fix_pycall` additionally checks `PyCall.jl` and tries to fix it if necessary.
+
+- 
 
