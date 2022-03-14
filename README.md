@@ -60,5 +60,3 @@ a description of arguments.
 
 `ensure_project_ready_fix_pycall` additionally checks `PyCall.jl` and tries to fix it if necessary.
 
-- 
-
