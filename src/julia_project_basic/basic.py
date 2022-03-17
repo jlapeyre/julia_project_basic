@@ -9,7 +9,7 @@ import tomli
 import find_libpython
 
 
-LOGGER = logging.getLogger('julia_project.install')
+LOGGER = logging.getLogger('julia_project.basic')
 
 std_flags = ['-q', '--history-file=no', '--startup-file=no', '--optimize=0']
 
@@ -30,6 +30,7 @@ def run_julia(commands=None, julia_exe=None, depot_path=None, clog=False, no_std
     if julia_exe is None:
         julia_exe = shutil.which("julia")
     old_depot = os.getenv("JULIA_DEPOT_PATH")
+    LOGGER.info(commands)
     try:
         if depot_path is not None:
             depot_path = os.path.abspath(depot_path)
