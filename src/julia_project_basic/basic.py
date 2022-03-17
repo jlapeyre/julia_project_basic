@@ -290,6 +290,17 @@ def _need_resolve(project_path, depot_path, registries=None):
     return (False, manifest_time)
 
 
+def packages_to_add(project_path, needed_packs):
+    if needed_packs is not None:
+        LOGGER.info(f"Want packages in project: {needed_packs}")
+        pack_iter = zip(needed_packs, is_package_in_project(project_path, needed_packs))
+        the_packages_to_add = [p for (p, v) in pack_iter if not v]
+        LOGGER.info(f"Need to add packages not in project: {the_packages_to_add}")
+    else:
+        the_packages_to_add = None
+    return the_packages_to_add
+
+
 def touch(file_path):
     now = datetime.datetime.now()
     set_file_mutimes(file_path, now)
@@ -302,7 +313,7 @@ def set_file_mutimes(file_path, dt):
 
 def ensure_project_ready(project_path=None, julia_exe=None, depot_path=None,
                          registries=None, clog=False, preinstall_callback=None,
-                         packages_to_add=None,
+                         needed_packages=None,
                          force=False):
     """
     Check that Julia project is properly installed, taking action if not.
@@ -312,7 +323,7 @@ def ensure_project_ready(project_path=None, julia_exe=None, depot_path=None,
     - depot_path : optional value for JULIA_DEPOT_PATH
     - registries : dict whose keys are registry names and values are urls
         The general registry is always installed.
-    - packages_to_add : optional list of package names that will be added to
+    - needed_packages : optional list of package names that will be added to
         the project if not already present.
     - preinstall_callback : called before any work is done
     - force : perform installation steps even if not needed. Some of these
@@ -326,19 +337,25 @@ def ensure_project_ready(project_path=None, julia_exe=None, depot_path=None,
     if julia_exe is None:
         julia_exe = shutil.which("julia")
 
-    if packages_to_add is not None:
-        LOGGER.info(f"Want packages in project: {packages_to_add}")
-        pack_iter = zip(packages_to_add, is_package_in_project(project_path, packages_to_add))
-        needed_packs = [p for (p, v) in pack_iter if not v]
-        LOGGER.info(f"Need to add packages not in project: {needed_packs}")
-    else:
-        needed_packs = None
+    # if packages_to_add is not None:
+    #     LOGGER.info(f"Want packages in project: {packages_to_add}")
+    #     pack_iter = zip(packages_to_add, is_package_in_project(project_path, packages_to_add))
+    #     needed_packs = [p for (p, v) in pack_iter if not v]
+    #     LOGGER.info(f"Need to add packages not in project: {needed_packs}")
+    # else:
+    #     needed_packs = None
+
+    the_packages_to_add =  packages_to_add(project_path, needed_packages)
 
     need_resolve_res, start_manifest_time = _need_resolve(project_path, depot_path, registries)
-    if (not need_resolve_res) and (not force) and not needed_packs:
+    if (not need_resolve_res) and (not force) and not the_packages_to_add:
         LOGGER.info("Project needs no installation or updating")
         return None
     LOGGER.info(f"Installing or instantiating project: project {project_path}, depot {depot_path}")
+    # manifest_toml = get_manifest_toml(project_path)
+    # if os.path.exists(manifest_toml):
+    #     os.remove(manifest_toml) # May help with edge case
+    #     LOGGER.info(f"Removing {manifest_toml}")
     if preinstall_callback is not None: # We are not using this
         LOGGER.info("Running preinstall_callback.")
         preinstall_callback()
@@ -353,7 +370,7 @@ def ensure_project_ready(project_path=None, julia_exe=None, depot_path=None,
     LOGGER.info(msg)
     if clog:
         print(msg)
-    res = instantiate(project_path, julia_exe=julia_exe, depot_path=depot_path, clog=clog, packages_to_add=needed_packs)
+    res = instantiate(project_path, julia_exe=julia_exe, depot_path=depot_path, clog=clog, packages_to_add=the_packages_to_add)
 #    except: Probably don't want this
 #        res = resolve(project_path, julia_exe=julia_exe, depot_path=depot_path, clog=clog)
 
@@ -502,7 +519,7 @@ def ensure_project_ready_fix_pycall(
         registries=None,
         clog=False,
         preinstall_callback=None,
-        packages_to_add=None,
+        needed_packages=None,
         force=False,
         possible_depot_path=None,
         question_callback=None,
@@ -539,7 +556,7 @@ def ensure_project_ready_fix_pycall(
         LOGGER.info(f"Trial {trial_num}: ensure_project_ready")
         ensure_project_ready(project_path, julia_exe, depot_path=depot_path,
                              registries=registries, clog=clog,
-                             preinstall_callback=preinstall_callback, packages_to_add=packages_to_add, force=force)
+                             preinstall_callback=preinstall_callback, needed_packages=needed_packages, force=force)
         pycall_result = test_pycall(project_path, julia_exe, depot_path=depot_path, clog=False)
         if is_pycall_lib_incompatible(pycall_result):
             LOGGER.info("Incompatible libpython detected.")
