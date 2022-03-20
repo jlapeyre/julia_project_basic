@@ -152,12 +152,14 @@ def _add_packages_string(packages_to_add):
     return ";".join([f'Pkg.add("{name}")' for name in packages_to_add])
 
 
-def instantiate(project_path, julia_exe=None, depot_path=None, clog=False, packages_to_add=None):
+def instantiate(project_path, julia_exe=None, depot_path=None, clog=False, packages_to_add=None, pre_instantiate_cmds=None):
     if packages_to_add is None:
         add_pkg_str = ''
     else:
         add_pkg_str = _add_packages_string(packages_to_add)
-    result = run_pkg_commands(project_path, add_pkg_str +  '; Pkg.instantiate()',
+    if pre_instantiate_cmds is None:
+        pre_instantiate_cmds = ''
+    result = run_pkg_commands(project_path, add_pkg_str + ';' + pre_instantiate_cmds + '; Pkg.instantiate()',
                             julia_exe=julia_exe, depot_path=depot_path, clog=clog)
     manifest_toml = get_manifest_toml(project_path)
     if manifest_toml is None:
@@ -312,8 +314,9 @@ def set_file_mutimes(file_path, dt):
 
 
 def ensure_project_ready(project_path=None, julia_exe=None, depot_path=None,
-                         registries=None, clog=False, preinstall_callback=None,
+                         registries=None, clog=False, pre_install_callback=None,
                          needed_packages=None,
+                         pre_instantiate_cmds=None,
                          force=False):
     """
     Check that Julia project is properly installed, taking action if not.
@@ -325,7 +328,10 @@ def ensure_project_ready(project_path=None, julia_exe=None, depot_path=None,
         The general registry is always installed.
     - needed_packages : optional list of package names that will be added to
         the project if not already present.
-    - preinstall_callback : called before any work is done
+    - pre_install_callback : called before any work is done
+    - pre_instantiate_cmds : a string of Julia commands to execute immediately before
+      calling `Pkg.instantiate`. Note that `Pkg` will be imported before these commands
+      are run. For example, you may call 'Pkg.develop(path="...")'.
     - force : perform installation steps even if not needed. Some of these
       steps may check if action is needed, and these checks are not overridden.
     - clog : bool Print some log information to the console.
@@ -356,9 +362,9 @@ def ensure_project_ready(project_path=None, julia_exe=None, depot_path=None,
     # if os.path.exists(manifest_toml):
     #     os.remove(manifest_toml) # May help with edge case
     #     LOGGER.info(f"Removing {manifest_toml}")
-    if preinstall_callback is not None: # We are not using this
-        LOGGER.info("Running preinstall_callback.")
-        preinstall_callback()
+    if pre_install_callback is not None: # We are not using this
+        LOGGER.info("Running pre_install_callback.")
+        pre_install_callback()
     ensure_general_registry(project_path, julia_exe=julia_exe, depot_path=depot_path, clog=clog)
     if registries is not None:
         if not isinstance(registries, dict):
@@ -370,9 +376,8 @@ def ensure_project_ready(project_path=None, julia_exe=None, depot_path=None,
     LOGGER.info(msg)
     if clog:
         print(msg)
-    res = instantiate(project_path, julia_exe=julia_exe, depot_path=depot_path, clog=clog, packages_to_add=the_packages_to_add)
-#    except: Probably don't want this
-#        res = resolve(project_path, julia_exe=julia_exe, depot_path=depot_path, clog=clog)
+    res = instantiate(project_path, julia_exe=julia_exe, depot_path=depot_path, clog=clog, packages_to_add=the_packages_to_add,
+                      pre_instantiate_cmds=pre_instantiate_cmds)
 
     if start_manifest_time is not None:
         end_manifest_time = manifest_mtime(project_path)
@@ -518,8 +523,9 @@ def ensure_project_ready_fix_pycall(
         depot_path=None,
         registries=None,
         clog=False,
-        preinstall_callback=None,
+        pre_install_callback=None,
         needed_packages=None,
+        pre_instantiate_cmds=None,
         force=False,
         possible_depot_path=None,
         question_callback=None,
@@ -556,7 +562,10 @@ def ensure_project_ready_fix_pycall(
         LOGGER.info(f"Trial {trial_num}: ensure_project_ready")
         ensure_project_ready(project_path, julia_exe, depot_path=depot_path,
                              registries=registries, clog=clog,
-                             preinstall_callback=preinstall_callback, needed_packages=needed_packages, force=force)
+                             pre_install_callback=pre_install_callback,
+                             pre_instantiate_cmds=pre_instantiate_cmds,
+                             needed_packages=needed_packages,
+                             force=force)
         pycall_result = test_pycall(project_path, julia_exe, depot_path=depot_path, clog=False)
         if is_pycall_lib_incompatible(pycall_result):
             LOGGER.info("Incompatible libpython detected.")
