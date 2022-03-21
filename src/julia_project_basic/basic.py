@@ -29,6 +29,8 @@ def reset_env_var(var_name, old_val):
 def run_julia(commands=None, julia_exe=None, depot_path=None, clog=False, no_stderr=False):
     if julia_exe is None:
         julia_exe = shutil.which("julia")
+    if julia_exe is None:
+        raise ValueError("Can't find julia executable")
     old_depot = os.getenv("JULIA_DEPOT_PATH")
     LOGGER.info(commands)
     try:
@@ -64,7 +66,8 @@ def run_julia(commands=None, julia_exe=None, depot_path=None, clog=False, no_std
 def old_run_julia(commands=None, julia_exe=None, depot_path=None, clog=False):
     if julia_exe is None:
         julia_exe = shutil.which("julia")
-
+    if julia_exe is None:
+        raise ValueError("Can't find julia executable")
     old_depot = os.getenv("JULIA_DEPOT_PATH")
     try:
         if depot_path is not None:
@@ -342,6 +345,8 @@ def ensure_project_ready(project_path=None, julia_exe=None, depot_path=None,
 
     if julia_exe is None:
         julia_exe = shutil.which("julia")
+    if julia_exe is None:
+        raise ValueError("Can't find julia executable")
 
     # if packages_to_add is not None:
     #     LOGGER.info(f"Want packages in project: {packages_to_add}")
@@ -422,6 +427,9 @@ def test_pycall(project_path, julia_exe=None, depot_path=None, clog=False):
     """
     if julia_exe is None:
         julia_exe = shutil.which("julia")
+    if julia_exe is None:
+        raise ValueError("Can't find julia executable")
+
     pycall_libpython, pycall_python_exe, msg = get_pycall_libpython(project_path, julia_exe=julia_exe, depot_path=depot_path, clog=clog)
     result = {"lib": pycall_libpython, "exe": pycall_python_exe, "msg": msg, "jexe": julia_exe, "this_lib": None}
     if pycall_libpython == "nothing":
@@ -506,7 +514,7 @@ def rebuild_pycall(project_path, python_exe=None, julia_exe=None, depot_path=Non
     coms = 'Pkg.build("PyCall")'
     old_python = os.getenv("PYTHON")
     try:
-        os.environ["PYTHON"] = python_exe
+        os.environ["PYTHON"] = python_exe or '' # Try even if we can't find python
         if clog:
             print(f"run_pkg_commands({project_path}, commands={coms}, julia_exe={julia_exe}, depot_path={depot_path}, clog={clog})")
         result = run_pkg_commands(project_path, commands=coms, julia_exe=julia_exe, depot_path=depot_path, clog=clog)
@@ -552,6 +560,8 @@ def ensure_project_ready_fix_pycall(
 
     if julia_exe is None:
         julia_exe = shutil.which("julia")
+    if julia_exe is None:
+        raise ValueError("Can't find julia executable")
 
     for trial_num in (1, 2, 3):
         if trial_num == 1:
