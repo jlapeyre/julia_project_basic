@@ -131,7 +131,10 @@ def _parse_toml(file_name):
 
 
 def parse_project(project_path):
-    toml_path = get_project_toml(project_path)
+    if project_path.endswith(".toml"):
+        toml_path = project_path
+    else:
+        toml_path = get_project_toml(project_path)
     return _parse_toml(toml_path)
 
 
