@@ -26,7 +26,7 @@ def reset_env_var(var_name, old_val):
 
 
 # Try to print output as it is received
-def run_julia(commands=None, julia_exe=None, depot_path=None, clog=False, no_stderr=False):
+def run_julia(commands, julia_exe=None, depot_path=None, clog=False, no_stderr=False):
     if julia_exe is None:
         julia_exe = shutil.which("julia")
     if julia_exe is None:
@@ -51,6 +51,7 @@ def run_julia(commands=None, julia_exe=None, depot_path=None, clog=False, no_std
                 if process.poll() is not None:
                     break
     except subprocess.CalledProcessError as err:
+        print("!!!!!!!!!!! Got other err ", type(err))
         if clog:
             print(err.stderr)
         raise err
@@ -120,6 +121,8 @@ def install_registry_from_url(registry_url, julia_exe=None, depot_path=None, clo
 def run_pkg_commands(project_path, commands, julia_exe=None, depot_path=None, clog=False, no_stderr=False):
     if not os.path.isdir(project_path) and not os.path.isfile(project_path):
         raise FileNotFoundError(f"{project_path} does not exist")
+    if os.path.isfile(project_path):
+        project_path = os.path.dirname(project_path) # julia commands run 250ms faster if we do this. why?
     com = f'import Pkg; Pkg.activate("{project_path}"); ' + commands
     return run_julia(commands=com, julia_exe=julia_exe, depot_path=depot_path, clog=clog, no_stderr=no_stderr)
 
@@ -420,7 +423,16 @@ def get_pycall_libpython(project_path, julia_exe=None, depot_path=None, clog=Fal
         if clog:
             print(err.stderr)
         raise err
-    libpython, python_exe, msg = result.split(",")  # result.stdout.split(",")
+    if result is None or result == '':
+        # I couldn't find online how to get stdout and stderr separately, so I turned it off.
+        # This means we don't know what happened.
+        raise RuntimeError(f"get_pycall_libpython failed to find python version for project_path={project_path}, " +
+                           f"depot_path={depot_path}, julia_exe={julia_exe}")
+    try:
+        libpython, python_exe, msg = result.split(",")  # result.stdout.split(",")
+    except ValueError: # TODO:  Raise our own ValueError
+        print(f"PyCall info string has incorrect format. result='{result}'")
+        raise
     return libpython, python_exe, msg
 
 
