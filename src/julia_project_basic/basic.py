@@ -430,9 +430,8 @@ def get_pycall_libpython(project_path, julia_exe=None, depot_path=None, clog=Fal
                            f"depot_path={depot_path}, julia_exe={julia_exe}")
     try:
         libpython, python_exe, msg = result.split(",")  # result.stdout.split(",")
-    except ValueError: # TODO:  Raise our own ValueError
-        print(f"PyCall info string has incorrect format. result='{result}'")
-        raise
+    except ValueError:
+        raise RuntimeError(f"PyCall libpython info string is invalid: result='{result}'")
     return libpython, python_exe, msg
 
 
